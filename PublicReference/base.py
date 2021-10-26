@@ -1736,7 +1736,8 @@ class 角色窗口(窗口):
         for i in 宠物列表:
             self.宠物.addItem(trans(i.名称))
 
-        标签 = QLabel('装备条件设置', self.main_frame1)
+        # Custom TL here
+        标签 = QLabel('Equipment Options', self.main_frame1)
         标签.move(940, 5)
         标签.resize(170, 20)
         标签.setAlignment(Qt.AlignCenter)
