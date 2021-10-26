@@ -2915,7 +2915,7 @@ class 角色窗口(窗口):
             y.move(横坐标 + 220, 纵坐标 + (i + 1) * 25)
             self.辟邪玉数值.append(y)
 
-        标签 = QLabel(trans('黑鸦遴选词条'), self.main_frame6)
+        标签 = QLabel(trans('BP Options'), self.main_frame6)
         标签.setStyleSheet(标签样式 + 'QLabel{font-size:13px;}')
         标签.resize(300, 20)
         标签.move(横坐标 + 10, 纵坐标 + 330 - 20)
@@ -2979,7 +2979,7 @@ class 角色窗口(窗口):
         # self.武器择优模式.setStyleSheet(复选框样式)
         # self.武器择优模式.setChecked(False)
 
-        self.守门人全属强 = QCheckBox(trans('  守门人全属强\n  自动补正'), self.main_frame6)
+        self.守门人全属强 = QCheckBox(trans('  GatekeeperEle\n  自动补正'), self.main_frame6)
         self.守门人全属强.resize(120, 30)
         self.守门人全属强.move(横坐标 + 181, 纵坐标 + 291 - 15)
         self.守门人全属强.setStyleSheet(复选框样式)
@@ -2993,7 +2993,7 @@ class 角色窗口(窗口):
             trans('辅助装备：全属强+12<br>魔法石：全属强+30<br>勋章：全属强+7<br>宠物附魔：三攻+60</font>')
         )
 
-        self.智慧产物升级 = QCheckBox(' 智慧产物升级', self.main_frame6)
+        self.智慧产物升级 = QCheckBox(' POW Upgrade', self.main_frame6)
         self.智慧产物升级.resize(140, 20)
         self.智慧产物升级.move(横坐标 + 161, 纵坐标 - 19 + 25 * (4 + 15) - 20)
         self.智慧产物升级.setStyleSheet(复选框样式)
@@ -3002,7 +3002,7 @@ class 角色窗口(窗口):
         横坐标 = 横坐标 + 320
         纵坐标 = 0
 
-        标签 = QLabel('希洛克相关', self.main_frame6)
+        标签 = QLabel('Sirocco', self.main_frame6)
         标签.setStyleSheet(标签样式 + 'QLabel{font-size:13px;}')
         标签.resize(300, 20)
         标签.move(横坐标 - 310, 纵坐标 + 135 - 10)

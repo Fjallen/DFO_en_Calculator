@@ -344,7 +344,8 @@ class 角色窗口(窗口):
             lambda: self.希洛克武器随机词条更新(self.武器融合属性B.currentIndex(), 1))
 
         纵坐标 = 纵坐标 + 60
-        标签 = QLabel('黑鸦遴选词条', self.main_frame2)
+        # custom TL
+        标签 = QLabel('BP Options', self.main_frame2)
         标签.setStyleSheet(标签样式 + 'QLabel{font-size:13px;}')
         标签.resize(410, 20)
         标签.move(横坐标, 纵坐标)
