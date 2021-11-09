@@ -1,5 +1,87 @@
 ## Newest
 
+### 2021-11-01
+
+#### NewFeatures
+* 计算器新增用户识别码,为本机Mac地址MD5加密(无法反解)<br>
+主要用于预防部分用户打碟,可供后续ban选用户 ([2c7bbd](https://gitee.com/i_melon/DNFCalculating/commit/2c7bbdae9d5b72f73995fe8f891927d4ddebd31e))
+
+#### BugFixes
+* 修复在目录存在空格的情况下可能误删文件的情况 ([1eafb8](https://gitee.com/i_melon/DNFCalculating/commit/1eafb8fba8dcd939c936d23b9dfad7124c83c323))
+* 修正输出技能数据无法使用的情况 ([a2183a](https://gitee.com/i_melon/DNFCalculating/commit/a2183ae1fd610ff251a66571a6bf058b92b64fb3))
+
+
+## History
+
+### 2021-10-27
+
+#### NewFeatures
+* 知源·缔造者：添加符文选项 ([6757fe](https://gitee.com/i_melon/DNFCalculating/commit/6757fe36b6d42b7ee170603920e1045f8f049760))
+
+#### BugFixes
+* 修复输出职业存档问题 ([e9aeb3](https://gitee.com/i_melon/DNFCalculating/commit/e9aeb39352145573c60c29eee08a46baabf07eee))
+* 残香图标与名望计算错误修复 ([56e773](https://gitee.com/i_melon/DNFCalculating/commit/56e77328cac5155f03650dc582d2c32e901c5fb3))
+
+### 2021-10-22
+
+#### BugFixes
+* 修正输出宠物缺失的情况 ([3de08b](https://gitee.com/i_melon/DNFCalculating/commit/3de08be9f6242bf53b907e514341c4b2368f4df1))
+* 苍暮·暗刃：修正无法打开的情况 ([a583d6](https://gitee.com/i_melon/DNFCalculating/commit/a583d6fa0a6188d559ebca018f110790734bef72))
+
+### 2021-10-21
+
+#### NewFeatures
+* 护石变更时默认为圣痕类型 ([f98466](https://gitee.com/i_melon/DNFCalculating/commit/f98466dcb5765a49ebf6602c12f4038e3fffef1d))
+
+### 2021-10-20
+
+#### NewFeatures
+* 噙毒手套支持设置是否触发 ([78a5ef](https://gitee.com/i_melon/DNFCalculating/commit/78a5ef090fa3609b03173da272d622be6d4d6a27))
+* 优化详情界面显示 ([47d5e3](https://gitee.com/i_melon/DNFCalculating/commit/47d5e3ad3fa898ccc26d8739f5a5c572eb3397fd))
+* 同步韩服体验服职业平衡 ([8e1ba1](https://gitee.com/i_melon/DNFCalculating/commit/8e1ba1c12bf120546f36914328ebb3d6537db0fc))
+* 极诣·流浪武士：前瞻版本新增光剑掌握技能<br>
+使用时，请自行调整对应技能等级，过去版本存档该技能默认为0级 ([9c634d](https://gitee.com/i_melon/DNFCalculating/commit/9c634df17ed870cb7af0cf5c694922a080b38150))
+* 添加奶系名望 ([8b4630](https://gitee.com/i_melon/DNFCalculating/commit/8b463048ccaca4d1294aaaac647b08fc6a211aea))
+
+#### BugFixes
+* 修复部分武器缺失图标的问题 ([0d7776](https://gitee.com/i_melon/DNFCalculating/commit/0d77765af86bef7269df600f0f86f812b63a8137))
+* 修正部分智慧产物升级属性问题 ([8daba2](https://gitee.com/i_melon/DNFCalculating/commit/8daba2fb9dc72af218c5d6d2fbf1d04c42e48839))
+* 极诣·剑影：修正特定选择下无法计算的情况 ([5a9507](https://gitee.com/i_melon/DNFCalculating/commit/5a95078da469dfaab4498433387f5aa5dce5057f))
+
+### 2021-10-15
+
+#### BugFixes
+* 修复智慧产物升级无法打开详情页bug ([6bf99b](https://gitee.com/i_melon/DNFCalculating/commit/6bf99b5ae789737806f6335bfa1c4ae327b3f998))
+
+### 2021-10-14
+
+#### BugFixes
+* 修正选择残香闪退的情况 ([184e35](https://gitee.com/i_melon/DNFCalculating/commit/184e3584ac75f6161603ba03f333d08cc755e7ea))
+
+### 2021-10-13
+
+#### NewFeatures
+* 同步国服10.14职业平衡 ([5d5ac5](https://gitee.com/i_melon/DNFCalculating/commit/5d5ac5cbae4bf04b2f2d3b7337ea7d8e64d32a09))
+* 归元·散打·男：同步无欲之花、正义的抉择不加成烈焰焚步的问题 ([58f1b3](https://gitee.com/i_melon/DNFCalculating/commit/58f1b3ac78da344e6ebd5898af4c5d5a65a663e5))
+* 新增名望参考计算By Umi，该功能处于试运行状态 ([ecc743](https://gitee.com/i_melon/DNFCalculating/commit/ecc7437aab247540278fbd1e83d6ae9ef8e6c6a1))
+
+#### BugFixes
+* 修复奶系希洛克属性2不正确的问题 ([5d13aa](https://gitee.com/i_melon/DNFCalculating/commit/5d13aac54d3ffc3274f0c2b44f3c9bc14e748fbb))
+* 修复奶系武器遴选描述不正确的bug ([1960de](https://gitee.com/i_melon/DNFCalculating/commit/1960de6f65ed84d05768a9a6f49849bf80b8d2c0))
+* 修复黑月之噬不吃CD恢复的BUG ([562687](https://gitee.com/i_melon/DNFCalculating/commit/562687371a390a3a1767661781595885b84c6d20))
+* 修正时装、白金技能选择范围 ([55876e](https://gitee.com/i_melon/DNFCalculating/commit/55876e542d8d22f211c479e2e73ec5aec3a285ed))
+* 千魂·决战者：修正流云幻灭数据错误 ([0eaf71](https://gitee.com/i_melon/DNFCalculating/commit/0eaf71a15404330a7d809dcaa326354060190c90))
+* 极诣·黑暗武士：修正斩龙破护石数据错误 ([5e874c](https://gitee.com/i_melon/DNFCalculating/commit/5e874cfc057177b83210f9813298bf6d7775fc4f))
+* 知源·元素师：修正前瞻版本圣灵符文数据错误 ([61f42a](https://gitee.com/i_melon/DNFCalculating/commit/61f42a4e6b68526e7ed34859aec641afef6ac97e))
+* 隐夜·刺客：修正螺旋穿刺护石数据错误 ([5782b4](https://gitee.com/i_melon/DNFCalculating/commit/5782b42f8b28b9fe0786775d1504a90113cb8864))
+
+
+
+
+
+
+
+
 ### 2021-09-30
 
 #### NewFeatures
@@ -112,8 +194,6 @@
 
 
 
-
-## History
 
 ### 2021-08-05
 

@@ -1,5 +1,5 @@
 from math import *
-from PublicReference.base import *
+from PublicReference.carry.base import *
 
 
 class 职业主动技能(主动技能):
@@ -576,7 +576,7 @@ for i in 技能列表:
 
 缔造者符文选项 = ['无']
 for i in 技能列表:
-    if i.所在等级 >= 1 and i.所在等级 <= 75 and i.是否有伤害 == 1:
+    if i.所在等级 >= 1 and i.所在等级 < 80 and i.是否有伤害 == 1:
         缔造者符文选项.append(i.名称)
 
 

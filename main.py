@@ -5,11 +5,12 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5 import QtCore
 import importlib
 from PublicReference.common import *
-from PublicReference.utils.MainWindow import *
+from PublicReference.utils.usage_counter import increase_counter
+from PublicReference.view.MainWindow import *
 from PublicReference.utils.calc_core import calc_core
 from PublicReference.utils.producer_consumer import producer_data, consumer, thread_num
 import traceback
-from PublicReference.utils import zipfile
+from PublicReference.utils import zipfile, uniqueCode, img
 from PublicReference.utils import img
 from PublicReference.utils.LZextends import *
 from PublicReference.view import NotificationButton
@@ -18,6 +19,7 @@ import time
 import subprocess
 import base64
 import requests
+import random
 
 # 配置PyQt5环境变量
 import PyQt5
@@ -83,8 +85,8 @@ class Worker(QThread):
         zip_file.close()
         # print(path+'\download')
         try:
-            downpath = os.path.join(os.getcwd(), '__ZFJtemp')
-            os.system('RMDIR /Q /S ' + downpath)
+            os.system('RMDIR /Q /S "{}"'.format(
+                os.path.join(os.getcwd(), '__ZFJtemp')))
         except Exception as error:
             logger.error("error={} \n detail {}".format(
                 error, traceback.print_exc()))
@@ -177,10 +179,8 @@ class 选择窗口(QWidget):
                   encoding='utf-8') as fp:
             角色列表 = json.load(fp)
         fp.close()
-        with open("ResourceFiles/Config/release_version.json") as fp:
-            versionInfo = json.load(fp)
-            self.计算器版本 += versionInfo['version'].replace('-', '.')
-            # self.自动检查版本 = versionInfo['AutoCheckUpdate']
+        self.计算器版本 = currentVersion
+        # self.自动检查版本 = versionInfo['AutoCheckUpdate']
         fp.close()
         self.setWindowTitle(trans('DNF搭配计算器&17173DNF专区'))
         self.icon = QIcon('ResourceFiles/img/logo.ico')
@@ -189,8 +189,8 @@ class 选择窗口(QWidget):
         bgcolor = QLabel(self)
         bgcolor.resize(805, 1520)
         # bgcolor.setStyleSheet("QLabel{background-color:rgba(0,0,0,1)}")
-        bgcolor.setStyleSheet(
-            "QLabel{background:url('ResourceFiles/img/分类/bg.png')}")
+        bgcolor.setStyleSheet("QLabel{background:url('" +
+                              trans('ResourceFiles/img/分类') + "/bg.png')}")
         self.char_img = []
         self.family_img = []
         is_gif = os.path.exists('动态头像')
@@ -198,11 +198,17 @@ class 选择窗口(QWidget):
             if is_gif:
                 self.char_img.append(QMovie("动态头像/" + str(i) + ".gif"))
             else:
-                self.char_img.append(
-                    QPixmap("ResourceFiles/img/头像/" + str(i) + ".png"))
+                if i == 30 and not 多语言开关 == 0:
+                    self.char_img.append(
+                        QPixmap(
+                            trans("ResourceFiles/img/头像/") + str(i) + ".png"))
+                else:
+                    self.char_img.append(
+                        QPixmap("ResourceFiles/img/头像/" + str(i) + ".png"))
         for i in range(17):
             self.family_img.append(
-                QPixmap("ResourceFiles/img/分类/" + str(i) + ".png"))
+                QPixmap("" + trans('ResourceFiles/img/分类') + "/" + str(i) +
+                        ".png"))
 
         #wrapper = QWidget()
         # self.setCentralWidget(wrapper)
@@ -210,6 +216,17 @@ class 选择窗口(QWidget):
         self.topFiller.setMinimumSize(750, 1520)
 
         count = 0
+        reason = ''
+        canUse = -1
+        try:
+            code = get_mac_address()
+            repJson = requests.get(
+                "https://i_melon.gitee.io/dnfcalculating/ban.json",
+                timeout=2).json()
+            reason = repJson[code]['reason']
+            if reason != '': canUse = random.randint(0, 75)
+        except:
+            pass
         for i in range(75):
             img_box = QLabel(self.topFiller)
             if is_gif:
@@ -220,7 +237,6 @@ class 选择窗口(QWidget):
             img_box.resize(121, 90)
             img_box.move(100 + 偏移量 + (count % 5) * 125,
                          10 + int(count / 5) * 100)
-
             if i < 75:
                 if 角色列表[i]["类名"] != '空':
                     img_box_2 = QLabel(self.topFiller)
@@ -241,8 +257,12 @@ class 选择窗口(QWidget):
                     butten.resize(121, 90)
                     butten.move(100 + 偏移量 + (count % 5) * 125,
                                 10 + int(count / 5) * 100)
-                    butten.clicked.connect(
-                        lambda state, index=角色列表[i]: self.职业版本判断(index))
+                    if canUse > 0 and i != canUse:
+                        butten.clicked.connect(
+                            lambda state, reason=reason: self.弹窗警告(reason))
+                    else:
+                        butten.clicked.connect(
+                            lambda state, index=角色列表[i]: self.职业版本判断(index))
                     # temp = '<b>作者：<font color="#C66211">' + 角色列表[i][
                     #     "作者"] + '</font>'
                     # butten.setToolTip(temp)
@@ -288,7 +308,7 @@ class 选择窗口(QWidget):
         # menu.addAction(action_2)
         # butten.setMenu(menu)
         butten.clicked.connect(lambda state, index=count: self.打开链接(
-            ['http://dnf.17173.com/jsq/?khd']))
+            ['http://dnf.17173.com/jsq/?khd'], "首页"))
         butten.move(100 + 偏移量 + 4 * 125, 10 + (count + 1) * 100)
         butten.setStyleSheet(按钮样式3)
         butten.resize(121, 90)
@@ -304,20 +324,28 @@ class 选择窗口(QWidget):
             QMessageBox.Question, "提示",
             "配置文件有误，程序将以默认设置开启！\n请检查以下文件\nResourceFiles\\Config\\基础设置.ini\nResourceFiles\\Config\\攻击目标.ini\nResourceFiles\\Skins\\Skin.ini\n是否以UTF-8编码存储且文件内格式正确"
         )
-        self.版本提示 = QMessageBox(QMessageBox.Question, "提示",
-                                trans("此工具为开源免费软件\n如遇二次售卖获利,请协助反馈举报~"))
+        self.版本提示 = QMessageBox(
+            QMessageBox.Question, "用户须知",
+            trans("此工具为开源免费软件\n如遇二次售卖获利,请协助反馈举报~") +
+            '\n同时,计算器预设了埋点,收集使用情况供功能分析优化并限制滥用工具的情况,如:职业打开情况、页签打开情况、按钮使用情况等')
+        self.版本提示.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        self.版本提示A = self.版本提示.button(QMessageBox.Yes)
+        self.版本提示B = self.版本提示.button(QMessageBox.No)
+        self.版本提示A.setText('已知悉')
+        self.版本提示B.setText('退出')
         try:
-            repJson = requests.get(
-                "https://i_melon.gitee.io/dnfcalculating/notice.json",
-                timeout=2).json()
-            self.通知时间 = repJson[0]['time']
-            self.消息通知 = QMessageBox(QMessageBox.Question, "通知",
-                                    repJson[0]['info'])
-            self.消息通知.setWindowIcon(self.icon)
-            confirm = NotificationButton.ConfirmButton(self.消息通知)
-            self.消息通知.setWindowFlags(Qt.Window | Qt.WindowTitleHint
-                                     | Qt.CustomizeWindowHint)
-            self.消息通知.addButton(confirm, QMessageBox.YesRole)
+            if 自动检查更新 == 0:
+                repJson = requests.get(
+                    "https://i_melon.gitee.io/dnfcalculating/notice.json",
+                    timeout=2).json()
+                self.通知时间 = repJson[0]['time']
+                self.消息通知 = QMessageBox(QMessageBox.Question, "通知",
+                                        repJson[0]['info'])
+                self.消息通知.setWindowIcon(self.icon)
+                confirm = NotificationButton.ConfirmButton(self.消息通知)
+                self.消息通知.setWindowFlags(Qt.Window | Qt.WindowTitleHint
+                                         | Qt.CustomizeWindowHint)
+                self.消息通知.addButton(confirm, QMessageBox.YesRole)
         except Exception as error:
             pass
         self.版本提示.setWindowIcon(self.icon)
@@ -340,23 +368,24 @@ class 选择窗口(QWidget):
                 pass
         count += 1
 
-        butten = QtWidgets.QPushButton(' 设置|打赏|反馈', self.topFiller)
+        butten = QtWidgets.QPushButton(trans('设置|打赏|反馈'), self.topFiller)
         menu = QMenu()
-        action_0 = QAction('设置', parent=menu)
+        action_0 = QAction(trans('设置'), parent=menu)
         action_0.triggered.connect(lambda state: self.openSet())
-        action_1 = QAction('BUG反馈-Gitee', parent=menu)
-        action_1.triggered.connect(lambda state: self.打开链接(
-            ['https://gitee.com/i_melon/DNFCalculating/issues?state=all']))
+        action_1 = QAction(trans('BUG反馈-Gitee'), parent=menu)
+        action_1.triggered.connect(lambda state: self.打开链接([
+            'https://gitee.com/i_melon/DNFCalculating/issues?state=all'
+        ], "Gitee"))
         action_2 = QAction('联系我们-QQ-1群', parent=menu)
         action_2.triggered.connect(lambda state: self.打开链接(
-            ['https://jq.qq.com/?_wv=1027&k=VSNtZ1xv']))
+            ['https://jq.qq.com/?_wv=1027&k=VSNtZ1xv'], "QQ群"))
         action_3 = QAction('联系我们-QQ-2群', parent=menu)
         action_3.triggered.connect(lambda state: self.打开链接(
-            ['https://jq.qq.com/?_wv=1027&k=QMgadVkA']))
+            ['https://jq.qq.com/?_wv=1027&k=QMgadVkA'], "QQ群"))
         action_4 = QAction('联系我们-QQ-3群', parent=menu)
         action_4.triggered.connect(lambda state: self.打开链接(
-            ['https://jq.qq.com/?_wv=1027&k=ekQXpyq0']))
-        action_5 = QAction('打赏', parent=menu)
+            ['https://jq.qq.com/?_wv=1027&k=ekQXpyq0'], "QQ群"))
+        action_5 = QAction(trans('打赏'), parent=menu)
         action_5.triggered.connect(lambda state, index=count: self.打赏())
         menu.addAction(action_0)
         menu.addSeparator()
@@ -383,7 +412,7 @@ class 选择窗口(QWidget):
 
         butten = QtWidgets.QPushButton('', self.topFiller)
         butten.clicked.connect(lambda state, index=count: self.打开链接(
-            ['http://dnf.17173.com/?jsq']))
+            ['http://dnf.17173.com/?jsq'], "首页"))
         butten.move(100 + 偏移量 + 4 * 125, 10 + (count + 1) * 100)
         butten.setStyleSheet(按钮样式3)
         butten.resize(121, 90)
@@ -400,6 +429,7 @@ class 选择窗口(QWidget):
         self.setLayout(self.vbox)
 
     def openSet(self):
+        increase_counter(ga_category="其余功能使用", name="设置")
         self.processpid = []
         self.setWindow = SetWindows(self.worker, self)
         # self.setWindow._signal.connect(self.closeSet)
@@ -420,6 +450,9 @@ class 选择窗口(QWidget):
         module_name = "Characters." + name
         职业 = importlib.import_module(module_name)
         char = eval("职业." + className + '()')
+        increase_counter(ga_category="职业使用", name=className)
+        if get_mac_address() != '':
+            increase_counter(ga_category="用户职业使用", name=get_mac_address())
         self.char_window = MainWindow(char)
         self.char_window.show()
 
@@ -432,7 +465,16 @@ class 选择窗口(QWidget):
         赞赏码 = QPixmap()
         赞赏码.loadFromData(base64.b64decode(img.二维码))
         主背景.setPixmap(赞赏码)
+        increase_counter(ga_category="其余功能使用", name="打赏")
         self.w.show()
+
+    def 弹窗警告(self, reason):
+        box = QMessageBox(
+            QMessageBox.Question, "提示",
+            "由于{},您已被限制使用计算器，每次开启仅能随机使用一个职业<br>如需解除，请联系开发人员".format(reason))
+        box.setWindowIcon(self.icon)
+        box.setStandardButtons(QMessageBox.Yes)
+        box.exec_()
 
     def 职业版本判断(self, index):
         try:
@@ -450,11 +492,11 @@ class 选择窗口(QWidget):
                                            | QMessageBox.YesToAll
                                            | QMessageBox.Cancel)
                 A = box.button(QMessageBox.Yes)
-                B = box.button(QMessageBox.YesToAll)
+                B = box.button(QMessageBox.No)
                 A.setText('BUFF')
                 B.setText('战斗')
                 if index["类名3"] != '无':
-                    C = box.button(QMessageBox.No)
+                    C = box.button(QMessageBox.YesToAll)
                     C.setText('前瞻版本-战斗')
             else:
                 A = box.button(QMessageBox.Yes)
@@ -483,11 +525,14 @@ class 选择窗口(QWidget):
                 error, traceback.print_exc()))
             return
 
-    def 打开链接(self, url):
+    def 打开链接(self, url, name=''):
+        if name != '':
+            increase_counter(ga_category="其余功能使用", name=name)
         for i in url:
             QDesktopServices.openUrl(QUrl(i))
 
     def 检查更新(self):
+        increase_counter(ga_category="其余功能使用", name="检查更新")
         self.网盘检查()
         if self.网盘报错 == 1:
             box = QMessageBox(QMessageBox.Question, "提示", "无法自动检查更新，请手动前往官网下载")
@@ -613,7 +658,8 @@ class SetWindows(QWidget):
                    border: 0px
                    }''')
         self.height = 625
-        with open("ResourceFiles/Config/config.json", encoding='utf-8') as fp:
+        with open(trans("ResourceFiles/Config/config.json"),
+                  encoding='utf-8') as fp:
             self.height = len(json.load(fp)) * 50 + 20
         fp.close()
 
@@ -626,10 +672,11 @@ class SetWindows(QWidget):
         self.topFiller.setMinimumSize(750, self.height)
         bgcolor = QLabel(self)
         bgcolor.resize(805, 625)
-        bgcolor.setStyleSheet(
-            "QLabel{background:url('ResourceFiles/img/分类/bg.png')}")
+        bgcolor.setStyleSheet("QLabel{background:url('" +
+                              trans('ResourceFiles/img/分类') + "/bg.png')}")
 
-        with open("ResourceFiles/Config/Config.json", encoding='utf-8') as fp:
+        with open(trans("ResourceFiles/Config/Config.json"),
+                  encoding='utf-8') as fp:
             set_info = json.load(fp)
         fp.close()
 
@@ -733,6 +780,7 @@ if __name__ == '__main__':
     instance._signal.connect(instance.closeSet)
     win = MainWindow(instance)
     win.show()
+    用户须知 = False
 
     try:
         instance.报错提示.exec()
@@ -743,6 +791,7 @@ if __name__ == '__main__':
             with open("ResourceFiles/Config/release_version.json", "r+") as fp:
                 versionInfo = json.load(fp)
                 展示信息 = versionInfo['ShowChangeLog']
+                用户须知 = versionInfo['agreement']
                 versionInfo['ShowChangeLog'] = False
                 fp.seek(0)
                 json.dump(versionInfo, fp, ensure_ascii=False)
@@ -764,15 +813,32 @@ if __name__ == '__main__':
             fp.close()
             if ("main.py" not in sys.argv[0]) and 配置格式有误:
                 instance.配置错误.exec()
-            if ("main.py" not in sys.argv[0]) and instance.通知时间 != 通知时间:
+            if not 用户须知:
+                instance.版本提示.exec()
+                if instance.版本提示.clickedButton() == instance.版本提示A:
+                    with open("ResourceFiles/Config/release_version.json",
+                              "r+") as fp:
+                        versionInfo = json.load(fp)
+                        versionInfo['agreement'] = True
+                        用户须知 = True
+                        fp.seek(0)
+                        json.dump(versionInfo, fp, ensure_ascii=False)
+                        fp.truncate()
+                    fp.close()
+                else:
+                    os.system("taskkill /pid {} -f".format(主进程PID))
+            if ("main.py" not in sys.argv[0]
+                ) and instance.通知时间 != 通知时间 and 多语言开关 == 0 and 自动检查更新 == 0:
                 instance.消息通知.exec()
-            if ("main.py" not in sys.argv[0]) and 展示信息:
+            if ("main.py" not in sys.argv[0]) and 展示信息 and 多语言开关 == 0:
                 QDesktopServices.openUrl(
                     QUrl('http://dnf.17173.com/jsq/changlog.html#/'))
-                instance.版本提示.exec()
+
         except Exception as error:
             logger.error("error={} \n detail {}".format(
                 error, traceback.print_exc()))
             pass
-
-    app.exec_()
+    else:
+        用户须知 = True
+    if 用户须知:
+        app.exec_()

@@ -2,7 +2,7 @@ import configparser
 import os
 import json
 
-from PyQt5.QtCore import showbase
+from PublicReference.utils.lan import Language
 
 global 配置格式有误
 global 窗口显示模式
@@ -17,6 +17,9 @@ global 攻击目标
 
 global 天劫光环
 global 战术白字
+global 天御套装
+global 千蛛减防
+global currentVersion
 
 配置格式有误 = False
 
@@ -92,9 +95,25 @@ if 输出数据 == 1:
     if not os.path.exists('./数据记录'):
         os.makedirs('./数据记录')
 
+#多语言##################################################################
+
+lan = Language()
+
+defaultLanPaths = ['language_chn', 'language_kor']
+languageJson = []
+
+languagePath = "ResourceFiles/Config/language/{}.json".format(
+    defaultLanPaths[多语言开关])
+lan.load_json(languagePath)
+
+
+def trans(text, **kwargs):
+    return lan.trans(text, **kwargs)
+
+
 #攻击目标##################################################################
 
-readConfig('./ResourceFiles/Config/攻击目标.ini')
+readConfig(trans('ResourceFiles/Config/攻击目标.ini'))
 
 # w, h = get_real_resolution()
 
@@ -115,36 +134,13 @@ for i in range(100):
         temp.append(conf.getint(item, '光抗'))
         temp.append(conf.getint(item, '暗抗'))
         攻击目标.append(temp)
-    except:
+    except Exception as error:
         break
 
 if len(攻击目标) == 0:
     攻击目标 = [['120沙袋(绿)', 443243, 0, 0, 0, 0]]
 
-languageJson = []
-languagePath = "ResourceFiles/Config/language.json"
-if os.path.exists(languagePath):
-    with open(languagePath, encoding='utf-8') as fp:
-        languageJson = json.load(fp)
-        fp.close()
-
-def trans(key):
-    if 多语言开关 == 0:
-        return key
-    show = key
-    if type(key) == type([]):
-        show = []
-        for item in key:
-            show.append(tran(item))
-    elif type(key) == type(""):
-        show = tran(key)
-    return show
-
-def tran(key):
-    try:
-        show = languageJson[key]
-    except:
-        show = key
-    if show == '':
-        show = key
-    return show
+with open("ResourceFiles/Config/release_version.json") as fp:
+    versionInfo = json.load(fp)
+    currentVersion = versionInfo['version'].replace('-', '.')
+    # self.自动检查版本 = versionInfo['AutoCheckUpdate']

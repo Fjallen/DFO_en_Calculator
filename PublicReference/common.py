@@ -1,6 +1,11 @@
 from math import ceil
 from PublicReference.equipment.equ_list import *
-from PublicReference.utils.MainWindow import *
+from PublicReference.view.MainWindow import *
+from PublicReference.utils.common import to_percent
+from PublicReference.utils.uniqueCode import get_mac_address
+from PublicReference.utils.watermark_def import *
+from PublicReference.view.DialogRegister import DefaultDialogRegister
+from PublicReference.utils.usage_counter import increase_counter
 
 装备版本 = "GF"
 装备增幅版本 = "GF"
@@ -218,9 +223,15 @@ class 窗口(QWidget):
 
         self.calc_done_signal.connect(self.calc_done)
         self.update_remaining_signal.connect(self.update_remaining)
-        store.delete("^/(buffer|carry)/data/.*$")
 
         self.窗口属性输入()
+        store.delete("^/(buffer|carry|fame)/.*$")
+
+        is_carry = self.初始属性.职业分类 == "输出"
+
+        store.set("type", 'carry' if is_carry else 'buffer')
+        store.set("/{type}/memory/original_property", self.初始属性)
+
         self.界面()
         self.布局界面()
 
@@ -235,7 +246,7 @@ class 窗口(QWidget):
             os.makedirs(path)
 
         self.存档列表读取()
-        if self.初始属性.职业分类 == '输出':
+        if is_carry:
             self.技能存档列表读取()
 
         self.click_window(0)
@@ -244,6 +255,7 @@ class 窗口(QWidget):
         self.close()
 
     def closeEvent(self, event):
+        DefaultDialogRegister.dispose()
         self.保存配置(self.存档位置)
         self.关闭排行窗口()
         super().closeEvent(event)
@@ -267,7 +279,12 @@ class 窗口(QWidget):
 
     def 界面(self):
         # self.setWindowTitle(self.角色属性A.实际名称 + "搭配计算器&17173DNF专区 （点击标签栏按钮切换界面）"+"装备版本："+self.角色属性A.版本 + " 增幅版本：" + self.角色属性A.增幅版本)
-        self.setWindowTitle(self.角色属性A.实际名称 + ' & 17173DNF专区')
+        名称 = self.角色属性A.实际名称
+        self.setWindowTitle(
+            trans(名称.replace('·男', '').replace('·女', '')) +
+            (('·' + trans('男')) if '男' in 名称 else (
+                ('·' + trans('女')) if '女' in 名称 else '')) + ' & ' +
+            trans('17173DNF专区'))
         self.icon = QIcon('./ResourceFiles/' + self.角色属性A.实际名称 +
                           '/技能/BUFF.png')
         self.setWindowIcon(self.icon)
@@ -355,7 +372,8 @@ class 窗口(QWidget):
             self.window_btn[-1].resize(int(self.width() / self.页面数量 - 8), 21)
             self.window_btn[-1].move((self.window_btn[-1].width()) * i + 10, 6)
             self.window_btn[-1].clicked.connect(
-                lambda state, index=i: self.click_window(index))
+                lambda state, index=i, name=self.页面名称[i]: self.click_window(
+                    index, info=name))
             self.window_btn[-1].DoubleClickSig.connect(
                 lambda state, index=i: self.重置页面(index))
 
@@ -434,17 +452,19 @@ class 窗口(QWidget):
                     else:
                         描述 = equ.get_suit_by_name(name).装备描述(self.角色属性A)[:-4]
                     if 描述 != '':
-                        temp += '<font color="#78FF1E">' + i.名称 + '[{}]</font><br>'.format(
-                            n)
+                        temp += '<font color="#78FF1E">' + trans(
+                            i.名称) + '[{}]</font><br>'.format(n)
                         temp += 描述
                         temp += '<br>'
-                except:
+                except Exception as e:
+                    logger.error(e)
                     pass
         return temp[:-4] + '</font>'
 
     def 单件描述(self, i):
         temp = '<font size="3" face="宋体"><font color="{}">'.format(颜色[i.品质])
-        temp += i.名称 + '</font><br>' + i.类型 + '-' + i.部位 + '<br>'
+        temp += trans(i.名称) + '</font><br>' + trans(i.类型) + \
+            '-' + trans(i.部位) + '<br>'
         if self.角色属性A.职业分类 == 'BUFF':
             temp += i.装备描述_BUFF(self.角色属性A)
         else:
@@ -701,7 +721,7 @@ class 窗口(QWidget):
         self.宠物.currentIndexChanged.connect(
             lambda state, index='宠物': self.描述更新(index, self.宠物))
 
-        x = QLabel(trans(trans('称号&宠物选择：')), self.main_frame1)
+        x = QLabel(trans(trans('称号&宠物选择')), self.main_frame1)
         x.resize(130, 20)
         x.move(360, 400)
         x.setAlignment(Qt.AlignCenter)
@@ -736,6 +756,7 @@ class 窗口(QWidget):
         for j in equ.get_equ_id_list():
             temp = equ.get_equ_by_id(j)
             if temp.品质 == '神话':
+
                 self.神话属性图片.append(QLabel(self.main_frame4))
                 self.神话属性图片[-1].setMovie(equ.get_img_by_id(j))
                 self.神话属性图片[-1].setToolTip('<font size="3" face="宋体">' +
@@ -778,55 +799,55 @@ class 窗口(QWidget):
             count = 0
             for i in equ.get_equ_list():
                 if i.品质 == '神话':
-                    描述列表 = trans([i.属性1描述, i.属性2描述, i.属性3描述, i.属性4描述])
+                    描述列表 = [i.属性1描述, i.属性2描述, i.属性3描述, i.属性4描述]
                     范围列表 = [i.属性1范围, i.属性2范围, i.属性3范围, i.属性4范围]
                     for j in range(4):
-                        if 描述列表[j] != trans('无'):
+                        if 描述列表[j] != '无':
+                            self.神话属性选项[count * 4 + j].setEnabled(True)
                             for k in range(范围列表[j][0], 范围列表[j][1] - 1, -1):
                                 if (k % 范围列表[j][2]) == 0 or k == 范围列表[j][0]:
-                                    temp = 描述列表[j] + str(k)
-                                    if 范围列表[j][2] == 1:
-                                        temp += '%'
+                                    temp = trans(描述列表[j], value=k)
                                     self.神话属性选项[count * 4 + j].addItem(temp)
                         else:
+                            self.神话属性选项[count * 4 + j].setEnabled(False)
                             self.神话属性选项[count * 4 + j].addItem(trans('无'))
                     count += 1
 
             count = 0
             for i in equ.get_equ_list():
                 if i.所属套装 == '智慧产物':
-                    描述列表 = trans([i.属性1描述, i.属性2描述, i.属性3描述, i.属性4描述])
+                    描述列表 = [i.属性1描述, i.属性2描述, i.属性3描述, i.属性4描述]
                     范围列表 = [i.属性1范围, i.属性2范围, i.属性3范围, i.属性4范围]
                     for j in range(4):
-                        if 描述列表[j] != trans('无'):
+                        if 描述列表[j] != '无':
+                            self.改造产物选项[count * 4 + j].setEnabled(True)
                             for k in range(范围列表[j][0], 范围列表[j][1] - 1, -1):
                                 if (k % 范围列表[j][2]) == 0 or k == 范围列表[j][0]:
-                                    temp = 描述列表[j] + str(k)
-                                    if 描述列表[j] != '所有属性强化:':
-                                        temp += '%'
+                                    temp = trans(描述列表[j], value=k)
                                     self.改造产物选项[count * 4 + j].addItem(temp)
                         else:
+                            self.改造产物选项[count * 4 + j].setEnabled(False)
                             self.改造产物选项[count * 4 + j].addItem(trans('无'))
                     count += 1
         else:
             count = 0
             for i in equ.get_equ_list():
                 if i.品质 == '神话':
-                    描述列表 = trans([
+                    描述列表 = [
                         i.属性1描述_BUFF, i.属性2描述_BUFF, i.属性3描述_BUFF, i.属性4描述_BUFF
-                    ])
+                    ]
                     范围列表 = [
                         i.属性1范围_BUFF, i.属性2范围_BUFF, i.属性3范围_BUFF, i.属性4范围_BUFF
                     ]
                     for j in range(4):
-                        if 描述列表[j] != trans('无'):
+                        if 描述列表[j] != '无':
+                            self.神话属性选项[count * 4 + j].setEnabled(True)
                             for k in range(范围列表[j][0], 范围列表[j][1] - 1, -1):
                                 if (k % 范围列表[j][2]) == 0 or k == 范围列表[j][0]:
-                                    temp = 描述列表[j] + str(k)
-                                    if 范围列表[j][2] == 1 and 'Lv' not in 描述列表[j]:
-                                        temp += '%'
+                                    temp = trans(描述列表[j], value=k)
                                     self.神话属性选项[count * 4 + j].addItem(temp)
                         else:
+                            self.神话属性选项[count * 4 + j].setEnabled(False)
                             self.神话属性选项[count * 4 + j].addItem(trans('无'))
                     count += 1
         pass
@@ -842,7 +863,7 @@ class 窗口(QWidget):
         if x == 0:
             装备 = []
             for i in self.自选装备:
-                装备.append(i.currentText())
+                装备.append(i.currentData())
             A = deepcopy(self.初始属性)
             self.输入属性(A)
             A.穿戴装备计算套装(装备)
@@ -966,7 +987,7 @@ class 窗口(QWidget):
                 self.奥兹玛选择状态[index] = 0
 
     def 技能存档更换(self):
-        if self.技能存档选择.currentText() == '新建存档':
+        if self.技能存档选择.currentText() == trans('新建存档'):
             num = 1
             while True:
                 path = './ResourceFiles/{}/{}'.format(self.角色属性A.实际名称,
@@ -980,7 +1001,7 @@ class 窗口(QWidget):
             self.保存json(path=self.技能存档位置, page=[1])
             self.技能存档选择.setItemText(self.技能存档选择.count() - 1,
                                     'skill-{}'.format(num))
-            self.技能存档选择.addItem('新建存档')
+            self.技能存档选择.addItem(trans('新建存档'))
             return
 
         if self.技能存档位置 == self.技能存档选择.currentText():
@@ -1012,11 +1033,11 @@ class 窗口(QWidget):
                     setfile.append(dir)
         self.技能存档选择.clear()
         self.技能存档选择.addItems(setfile)
-        self.技能存档选择.addItem('新建存档')
+        self.技能存档选择.addItem(trans('新建存档'))
         self.技能存档位置 = self.技能存档选择.currentText()
 
     def 存档更换(self):
-        if self.存档选择.currentText() == '新建存档':
+        if self.存档选择.currentText() == trans('新建存档'):
             num = 1
             while True:
                 path = './ResourceFiles/{}/{}'.format(self.角色属性A.实际名称,
@@ -1029,7 +1050,7 @@ class 窗口(QWidget):
             self.存档位置 = 'set-{}'.format(num)
             self.保存配置(self.存档位置)
             self.存档选择.setItemText(self.存档选择.count() - 1, 'set-{}'.format(num))
-            self.存档选择.addItem('新建存档')
+            self.存档选择.addItem(trans('新建存档'))
             return
 
         if self.存档位置 == self.存档选择.currentText():
@@ -1058,7 +1079,7 @@ class 窗口(QWidget):
         self.存档选择.clear()
         for k in setfile:
             self.存档选择.addItem(k)
-        self.存档选择.addItem('新建存档')
+        self.存档选择.addItem(trans('新建存档'))
         self.存档位置 = self.存档选择.currentText()
 
     def 全局重置(self):
@@ -1076,18 +1097,18 @@ class 窗口(QWidget):
         部位序号 = []
         for n in equ.get_equ_list():
             try:
-                if n.关联套装 == self.改造套装.currentText():
+                if n.关联套装 == self.改造套装.currentData():
                     名称列表.append(n.名称)
                     部位序号.append(部位字典[n.部位])
             except:
                 pass
             try:
-                if n.所属套装 == self.改造套装.currentText().split('[')[0]:
+                if n.所属套装 == self.改造套装.currentData().split('[')[0]:
                     名称列表.append(n.名称)
                     部位序号.append(部位字典[n.部位])
             except:
                 pass
-        if self.改造套装.currentText() == '兵法之神[5]':
+        if self.改造套装.currentData() == '兵法之神[5]':
             for n in equ.get_equ_list():
                 try:
                     if n.所属套装 in ['无相轮回的希望', '流逝轮回的记忆'] and n.部位 != '辅助装备':
@@ -1110,7 +1131,7 @@ class 窗口(QWidget):
         部位 = [-1, 0, 5, 8]
         序号 = 部位[self.神话部位选项.currentIndex()]
         if 序号 != -1:
-            当前 = equ.get_equ_by_name(self.自选装备[序号].currentText())
+            当前 = equ.get_equ_by_name(self.自选装备[序号].currentData())
             x = -1
             for i in equ.get_equ_list():
                 if 当前.部位 == i.部位:
@@ -1119,7 +1140,7 @@ class 窗口(QWidget):
                         self.自选装备[序号].setCurrentIndex(x)
         for k in [0, 5, 8]:
             if k != 序号:
-                当前 = equ.get_equ_by_name(self.自选装备[k].currentText())
+                当前 = equ.get_equ_by_name(self.自选装备[k].currentData())
                 if 当前.品质 == '神话':
                     x = -1
                     for i in equ.get_equ_list():
@@ -1133,7 +1154,7 @@ class 窗口(QWidget):
     def 自选装备更改(self, index=0):
         try:
             self.图片显示[index].setMovie(
-                equ.get_img_by_name(self.自选装备[index].currentText()))
+                equ.get_img_by_name(self.自选装备[index].currentData()))
         except:
             pass
 
@@ -1146,7 +1167,7 @@ class 窗口(QWidget):
 
     def 自选套装更改(self, index):
         self.计算标识 = 0
-        name = self.自选套装[index].currentText()
+        name = self.自选套装[index].currentData()
         for i in range(11):
             if self.装备锁定[i].isChecked():
                 continue
@@ -1187,7 +1208,7 @@ class 窗口(QWidget):
         for i in range(4):
             x = self.辟邪玉选择[i].currentIndex()
             if self.辟邪玉数值[i].currentIndex() >= 0:
-                辟邪玉列表[x].当前值 = float(self.辟邪玉数值[i].currentText().replace(
+                辟邪玉列表[x].当前值 = float(self.辟邪玉数值[i].currentData().replace(
                     '%', ''))
             辟邪玉列表[x].穿戴属性(属性)
 
@@ -1215,16 +1236,16 @@ class 窗口(QWidget):
                 if x == 1:
                     self.计算模式选择.setItemText(
                         0,
-                        trans('计算模式：极速模式') + '  ' + trans('组合：') +
-                        self.组合数量计算(0))
+                        trans("{计算模式：极速模式}  {组合}：$value",
+                              value=self.组合数量计算(0)))
                     self.计算模式选择.setItemText(
                         1,
-                        trans('计算模式：套装模式') + '  ' + trans('组合：') +
-                        self.组合数量计算(1))
+                        trans("{计算模式：套装模式}  {组合}：$value",
+                              value=self.组合数量计算(1)))
                     self.计算模式选择.setItemText(
                         2,
-                        trans('计算模式：单件模式') + '  ' + trans('组合：') +
-                        self.组合数量计算(2))
+                        trans("{计算模式：单件模式}  {组合}：$value",
+                              value=self.组合数量计算(2)))
             except Exception as error:
                 pass
 
@@ -1368,7 +1389,9 @@ class 窗口(QWidget):
         else:
             i.setStyleSheet(下拉框样式)
 
-    def click_window(self, index):
+    def click_window(self, index, info=''):
+        if info != '':
+            increase_counter(ga_category="界面使用情况", name=info)
         self.当前页面 = index
         if self.stacked_layout.currentIndex() != index:
             self.stacked_layout.setCurrentIndex(index)
@@ -1385,7 +1408,7 @@ class 窗口(QWidget):
             page4_height = 0
             自选装备名称 = []
             for i in self.自选装备:
-                自选装备名称.append(i.currentText())
+                自选装备名称.append(i.currentData())
             for j in equ.get_equ_id_list():
                 temp = equ.get_equ_by_id(j)
                 if temp.品质 == '神话':
@@ -1474,7 +1497,7 @@ class 窗口(QWidget):
                 装备.append(i[0])
         elif x == 1:
             for i in self.自选装备:
-                装备.append(i.currentText())
+                装备.append(i.currentData())
 
         self.有效穿戴组合.append(装备)
 
@@ -1703,13 +1726,13 @@ class 窗口(QWidget):
         self.计算按钮3.setText("完成:" + temp)
 
     def calc_done(self):
-        self.计算按钮1.setText("开始计算")
+        self.计算按钮1.setText(trans("开始计算"))
         self.计算按钮1.setEnabled(True)
         self.计算按钮1.setStyleSheet(按钮样式)
-        self.计算按钮2.setText("开始计算")
+        self.计算按钮2.setText(trans("开始计算"))
         self.计算按钮2.setEnabled(True)
         self.计算按钮2.setStyleSheet(按钮样式)
-        self.计算按钮3.setText("开始计算")
+        self.计算按钮3.setText(trans("开始计算"))
         self.计算按钮3.setEnabled(True)
         self.计算按钮3.setStyleSheet(按钮样式)
         if len(self.排行数据) == 0:
@@ -1729,7 +1752,7 @@ class 窗口(QWidget):
 
     def 单条排行数据判断(self, s, l):
         for i in l:
-            if s[i] != self.自选装备[i].currentText():
+            if s[i] != self.自选装备[i].currentData():
                 return 0
         return 1
 
@@ -1808,12 +1831,13 @@ class 窗口(QWidget):
            border: 0px
            }''')
 
-        滚动排行.resize(630, 530)
-        滚动排行.setMinimumSize(630, 530)
-        滚动排行.setMaximumSize(630, 1230)
+        滚动排行.resize(652, 530)
+        滚动排行.setMinimumSize(652, 530)
+        滚动排行.setMaximumSize(652, 1230)
         if len(筛选) == 0:
             # 滚动排行.setWindowTitle('当前模板配装排行（点击数字查看详情）'+"装备版本："+self.角色属性A.版本 + " 增幅版本：" + self.角色属性A.增幅版本)
-            滚动排行.setWindowTitle(trans('当前模板配装排行(点击数字查看详情)'))
+            滚动排行.setWindowTitle(
+                trans('当前模板配装排行(点击数字查看详情)') + ' {}'.format(get_mac_address()))
         else:
             temp = ''
             for name in 筛选.values():
@@ -1822,12 +1846,12 @@ class 窗口(QWidget):
         滚动排行.setWindowIcon(self.icon)
         if not SkinVersion == 'None':
             背景颜色 = QLabel(滚动排行)
-            背景颜色.resize(630, 1230)
+            背景颜色.resize(652, 1230)
             背景颜色.setStyleSheet("QLabel{background-color:rgba(50,50,50,1.0)}")
             排行背景透明度 = QGraphicsOpacityEffect()
             排行背景透明度.setOpacity(0.15)
             排行背景 = QLabel(滚动排行)
-            排行背景.resize(630, 1230)
+            排行背景.resize(652, 1230)
             排行背景.setPixmap(self.主背景图片)
             排行背景.setGraphicsEffect(排行背景透明度)
             排行背景.setAlignment(Qt.AlignCenter)
@@ -1835,7 +1859,7 @@ class 窗口(QWidget):
         #wrapper = QWidget()
         # 滚动排行.setCentralWidget(wrapper)
         滚动排行.topFiller = QWidget()
-        滚动排行.topFiller.setMinimumSize(570, 50 * len(显示序号) + 30)
+        滚动排行.topFiller.setMinimumSize(592, 50 * len(显示序号) + 30)
 
         if len(显示序号) > 10:
             初始x = -10
@@ -1921,7 +1945,19 @@ class 窗口(QWidget):
             详情按钮.clicked.connect(lambda state, index=显示序号[i]: self.输出界面(index))
 
             详情按钮.move(int(初始x + x间隔 * 15), int(初始y + i * y间隔))
-            详情按钮.resize(120, 30)
+            详情按钮.resize(142, 30)
+
+            code = MyQLabel(滚动排行.topFiller)
+            code.setText('<font face="黑体">' + get_mac_address() + '</font>')
+            # code.setText('abdhfosnd39dkws2dfsddd')
+            code.setStyleSheet(
+                f'{make_watermark_qt_color_string(watermark_surrounding_backgroud_color_ranking)};font-size:9px'
+            )
+            code.move(int(初始x + x间隔 * 15 + 1), int(初始y + i * y间隔) + 17)
+            code.resize(140, 15)
+            code.connect_customized_slot(
+                lambda index=显示序号[i]: self.输出界面(index))
+
             temp = deepcopy(self.角色属性A)
             技能等级溢出 = temp.等级溢出判断(
                 self.排行数据[显示序号[i]][0:12],
@@ -1957,6 +1993,14 @@ class 窗口(QWidget):
         滚动排行.setLayout(滚动排行.vbox)
 
         排行显示 = MainWindow(滚动排行)
+        # for i in range(0, 6):
+        #     label = QLabel(排行显示)
+        #     label.setText(get_mac_address())
+        #     label.move(10 + 70 * i, 40 + 90 * i)
+        #     label.resize(200, 21)
+        #     label.setStyleSheet(
+        #         'QLabel{font-size:15px;color:rgba(255,255,255,0.6);font-weight:bolder}'
+        #     )
         self.排行窗口列表.append(排行显示)
         排行显示.show()
 
@@ -1981,64 +2025,64 @@ class 窗口(QWidget):
             if 奥兹玛选择[i] > 0:
                 奥兹玛[i % 5] = i
 
-        #0 上衣
+        # 0 上衣
         图片列表.append(equ.get_img_by_name(装备列表[0]))
 
-        #1 护肩
+        # 1 护肩
         if 奥兹玛.get(0, -1) >= 0:
             图片列表.append(equ.get_img_by_id(1000 + 奥兹玛[0]))
         else:
             图片列表.append(equ.get_img_by_name(装备列表[1]))
 
-        #2 护腿
+        # 2 护腿
         if 希洛克.get(0, -1) >= 0:
             图片列表.append(equ.get_img_by_id(1100 + 希洛克[0]))
         else:
             图片列表.append(equ.get_img_by_name(装备列表[2]))
 
-        #3 腰带
+        # 3 腰带
         if 奥兹玛.get(1, -1) >= 0:
             图片列表.append(equ.get_img_by_id(1000 + 奥兹玛[1]))
         else:
             图片列表.append(equ.get_img_by_name(装备列表[3]))
 
-        #4 鞋子
+        # 4 鞋子
         if 奥兹玛.get(2, -1) >= 0:
             图片列表.append(equ.get_img_by_id(1000 + 奥兹玛[2]))
         else:
             图片列表.append(equ.get_img_by_name(装备列表[4]))
 
-        #5 手镯
+        # 5 手镯
         图片列表.append(equ.get_img_by_name(装备列表[5]))
 
-        #6 项链
+        # 6 项链
         if 奥兹玛.get(3, -1) >= 0:
             图片列表.append(equ.get_img_by_id(1000 + 奥兹玛[3]))
         else:
             图片列表.append(equ.get_img_by_name(装备列表[6]))
 
-        #7 戒指
+        # 7 戒指
         if 希洛克.get(1, -1) >= 0:
             图片列表.append(equ.get_img_by_id(1100 + 希洛克[1]))
         else:
             图片列表.append(equ.get_img_by_name(装备列表[7]))
 
-        #8 耳环
+        # 8 耳环
         图片列表.append(equ.get_img_by_name(装备列表[8]))
 
-        #9 辅助
+        # 9 辅助
         if 希洛克.get(2, -1) >= 0:
             图片列表.append(equ.get_img_by_id(1100 + 希洛克[2]))
         else:
             图片列表.append(equ.get_img_by_name(装备列表[9]))
 
-        #10 魔法石
+        # 10 魔法石
         if 奥兹玛.get(4, -1) >= 0:
             图片列表.append(equ.get_img_by_id(1000 + 奥兹玛[4]))
         else:
             图片列表.append(equ.get_img_by_name(装备列表[10]))
 
-        #11 武器
+        # 11 武器
         图片列表.append(equ.get_img_by_name(装备列表[11], 希洛克武器标记))
 
         return 图片列表
@@ -2138,25 +2182,26 @@ class 技能详情(QFrame):
                 CD显示 = ''
                 CD恢复 = ''
                 try:
-                    tempstr = '<font face="宋体"><font color="#FF6666">' + data.角色属性B.技能栏[
-                        i].名称 + ("<br>" if data.角色属性B.技能栏[i].备注 != '' else
-                                 '') + data.角色属性B.技能栏[i].备注 + '</font><br>'
+                    tempstr = '<font face="宋体"><font color="#FF6666">' + trans(
+                        data.角色属性B.技能栏[i].名称) + (
+                            "<br>" if data.角色属性B.技能栏[i].备注 != '' else
+                            '') + data.角色属性B.技能栏[i].备注 + '</font><br>'
                     百分比 = int(data.角色属性B.技能栏[i].等效百分比(data.角色属性B.武器类型) /
                               data.角色属性B.技能栏[i].倍率)
                     被动倍率 = round(data.角色属性B.技能栏[i].被动倍率 * 100, 1)
                     其他倍率 = round(data.角色属性B.技能栏[i].倍率 * 100, 1)
-                    tempstr += '百分比：' + str(百分比) + '%<br>'
-                    tempstr += '被动倍率：' + str(被动倍率) + '%<br>'
+                    tempstr += trans('{百分比}：$value%<br>', value=百分比)
+                    tempstr += trans('{被动倍率}：$value%<br>', value=被动倍率)
                     if data.角色属性B.技能栏[i].倍率 != 0:
-                        tempstr += '其它倍率：' + str(其他倍率) + '%<br>'
+                        tempstr += trans('{其它倍率}：$value%<br>', value=其他倍率)
                     CD显示 = str(
                         round(
                             data.角色属性B.技能栏[i].等效CD(data.角色属性B.武器类型,
                                                    data.角色属性B.类型) *
                             data.角色属性B.技能栏[i].恢复, 2))
-                    tempstr += 'CD显示：' + CD显示 + 's<br>'
-                    CD恢复 = str(round(data.角色属性B.技能栏[i].恢复 * 100, 1)) + '%'
-                    tempstr += 'CD恢复：' + CD恢复 + '</font>'
+                    tempstr += trans('{CD显示}：$values<br>', value=CD显示)
+                    tempstr += trans('{CD恢复}：$value</font>',
+                                     value=to_percent(data.角色属性B.技能栏[i].恢复))
                     每行详情[0].setToolTip(tempstr)
                 except:
                     pass
@@ -2223,3 +2268,119 @@ class 技能详情(QFrame):
         self.vbox = QVBoxLayout()
         self.vbox.addWidget(self.scroll)
         self.setLayout(self.vbox)
+
+
+from PublicReference.view.Page import Page
+from PyQt5.QtWidgets import QLabel, QGraphicsOpacityEffect
+from PublicReference.utils.constant import *
+from PublicReference.equipment.冒险家名望 import *
+
+
+class 名望窗口(Page):
+    def __init__(self):
+        super().__init__()
+        self.已初始化 = False
+
+    def 初始化(self):
+        self.初始化 = True
+        self.名望部位列表 = list(附魔名望默认选项.keys())
+        self.自选附魔名望选项 = []
+        self.自选徽章名望选项 = []
+        self.初始化UI()
+        self.初始化 = False
+        self.已初始化 = True
+
+    def 初始化UI(self):
+        icon = store.get("/app/window/icon")
+        bgImg = store.get("/app/window/background_image")
+        self.setStyleSheet('''QToolTip {
+           background-color: black;
+           color: white;
+           border: 0px
+           }''')
+        self.setFixedSize(440, 560)
+        self.setWindowTitle("名望设置")
+        self.setWindowIcon(icon)
+        backgroundColorLabel = QLabel(self)
+        backgroundColorLabel.resize(self.width(), self.height())
+        backgroundColorLabel.setStyleSheet(
+            "QLabel{background-color:rgba(50,50,50,1)}")
+        graphicsEffect = QGraphicsOpacityEffect()
+        graphicsEffect.setOpacity(0.1)
+        backgroundImageLabel = QLabel(self)
+        backgroundImageLabel.setPixmap(bgImg)
+        backgroundImageLabel.move(0, int((self.height() - 1230) / 6))
+        backgroundImageLabel.setGraphicsEffect(graphicsEffect)
+        borderLabel = QLabel(self)
+        borderLabel.resize(self.width() - 4, self.height() - 2)
+        borderLabel.move(2, -1)
+        borderLabel.setStyleSheet("QLabel{border:1px solid black}")
+
+        self.初始化装备UI()
+
+    def 初始化装备UI(self):
+        count = 0
+        名望细节 = store.get("/fame/selection")
+        徽章名望细节 = store.get("/fame/selection2")
+        label = QLabel(
+            '第一列为附魔名望选择<br>第二列为徽章名望选择<br>闪耀26名望,华丽30名望,灿烂36名望<br>玲珑46名望,白金232名望',
+            self)
+        label.setStyleSheet(标签样式_2)
+        label.resize(220, 100)
+        label.move(20 + 220, 10 + 30 * 5)
+
+        if 名望细节 == None:
+            defaultValueTable = 附魔名望默认选项
+            defaultValueTable2 = 徽章名望默认选项
+        else:
+            defaultValueTable = 名望细节
+            defaultValueTable2 = 徽章名望细节
+        for idx in range(len(self.名望部位列表)):
+            部位 = self.名望部位列表[idx]
+            label = QLabel(部位, self)
+            label.setStyleSheet(标签样式)
+            label.resize(70, 22)
+            label.move(20 + int(idx / 18) * 220, 10 + 30 * (idx % 18))
+
+            x = MyQComboBox(self)
+            x.placeholderText = 部位
+            values = 附魔名望选项[部位]
+            defaultValue = defaultValueTable[部位]
+            for value in values:
+                x.addItem(str(value))
+            x.currentIndexChanged.connect(lambda: self.更新名望细节())
+            defaultIndex = values.index(defaultValue)
+            x.setCurrentIndex(defaultIndex)
+            x.resize(55, 20)
+            x.move(90 + int(idx / 18) * 220, 10 + 30 * (idx % 18))
+            self.自选附魔名望选项.append(x)
+
+            徽章值 = 徽章名望选项.get(部位, None)
+            if 徽章值 != None:
+                徽章选项 = MyQComboBox(self)
+                徽章选项.placeholderText = 部位
+                徽章默认值 = defaultValueTable2[部位]
+                for value in 徽章值:
+                    徽章选项.addItem(str(value))
+                徽章选项.currentIndexChanged.connect(lambda: self.更新名望细节())
+                defaultIndex = 徽章值.index(徽章默认值)
+                徽章选项.setCurrentIndex(defaultIndex)
+                徽章选项.resize(55, 20)
+                徽章选项.move(90 + 70 + int(idx / 18) * 220, 10 + 30 * (idx % 18))
+                self.自选徽章名望选项.append(徽章选项)
+
+        self.更新名望细节()
+
+    def 更新名望细节(self):
+        if not self.已初始化: return
+        名望细节 = {}
+        徽章细节 = {}
+        for i in self.自选附魔名望选项:
+            名望细节[i.placeholderText] = i.currentText()
+
+        for i in self.自选徽章名望选项:
+            徽章细节[i.placeholderText] = i.currentText()
+
+        store.set("/fame/selection", 名望细节)
+        store.set("/fame/selection2", 徽章细节)
+        store.emit("/fame/event/changed")

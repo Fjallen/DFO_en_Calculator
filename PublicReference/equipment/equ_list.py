@@ -47,7 +47,7 @@ class equipment():
             self.equ_tuple += (temp, )
             self.equ_id_tuple += (i, )
             key = '{}\t{}\t{}'.format(temp.所属套装, temp.品质, temp.部位)
-            self.index[key] = i            
+            self.index[key] = i
 
     def load_suit(self):
         self.suit_list = {}
@@ -88,7 +88,7 @@ class equipment():
             img = QMovie(os.path.join(path, i))
             img.start()
             self.equ_img[2000 + int(i.split('.')[0])] = img
-    
+
     def get_suits_by_equips(self, equips):
         suits = []
         dictionary = {}
@@ -96,6 +96,9 @@ class equipment():
             item = self.get_equ_by_name(i)
             if item.所属套装2 != '无':
                 j = item.所属套装2
+                k = item.所属套装
+                if k != '智慧产物':
+                    dictionary[k] = dictionary.get(k, 0) + 1
             else:
                 j = item.所属套装
             if j != '无':
@@ -114,6 +117,13 @@ class equipment():
                         temp = '{}[{}]'.format(i, 5)
                         if temp in self.suit_name:
                             suits.append(temp)
+        for i in suits:
+            try:
+                temp = i.replace(i.split('[')[0], self.get_suit_by_name(i).子套装)
+                if temp in suits:
+                    suits.remove(temp)
+            except:
+                pass
         return suits
 
     def get_suit_by_id(self, id):
@@ -132,11 +142,14 @@ class equipment():
         return self.get_equ_by_id(self.equ_id.get(name, 0))
 
     def get_img_by_name(self, name, num=0):
-        return self.get_img_by_id(self.equ_id.get(name, 0) + num)
+        id = self.equ_id.get(name, 0)
+        # if id+num in self.equ_id_tuple:
+        id += num
+        return self.get_img_by_id(id)
 
     def get_id_by_name(self, name):
         return self.equ_id.get(name, 0)
-        
+
     def get_equ_list(self):
         return self.equ_tuple
 
@@ -156,5 +169,6 @@ class equipment():
     def get_equ_by_index(self, suit, quality, part):
         id = self.get_id_by_index(suit, quality, part)
         return self.get_equ_by_id(id)
+
 
 equ = equipment()

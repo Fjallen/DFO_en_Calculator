@@ -11,6 +11,7 @@ import re
 class Store:
     def __init__(self):
         self.__states = {}
+        self.last_state = None
         pass
 
     # 设置值
@@ -27,9 +28,12 @@ class Store:
             _value = defaultValue
         return _value
 
+    def __getitem__(self, __key: str):
+        return self.get(__key)
+
     # 获取一个克隆值
-    def clone(self,key:str,defaultValue:any = None):
-        value = self.get(key,defaultValue)
+    def clone(self, key: str, defaultValue: any = None):
+        value = self.get(key, defaultValue)
         return copy(value)
 
     # 主动通知变化
@@ -87,7 +91,7 @@ class Store:
                 match = pattern
             elif isinstance(pattern, str):
                 match = lambda s: re.match(pattern, s)
-        keys = list(filter(match,self.__states.keys()))
+        keys = list(filter(match, self.__states.keys()))
         for key in keys:
             self.__states.pop(key)
         return self
@@ -123,11 +127,14 @@ class Store:
 
     def __get_field__(self, key: str):
         field = None
+        if re.search("\{\w+\}", key):
+            key = key.format_map(self)
         if self.__states.__contains__(key):
             field = self.__states[key]
         else:
             field = Store.Field()
             self.__states[key] = field
+        self.last_state = (key, field)
         return field
 
     class Field:
@@ -164,4 +171,6 @@ class Store:
         def apply(self, valueChanged):
             if callable(valueChanged):
                 self.valueChangeds.append(valueChanged)
+
+
 store = Store()
